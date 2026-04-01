@@ -33,6 +33,18 @@ export class ConsoleReporter implements Reporter {
       lines.push("");
     }
 
+    if (result.efficiency) {
+      lines.push(this.bold("  efficiency"));
+      lines.push(
+        `    ${result.efficiency.toolCount} tools, ~${result.efficiency.schemaTokenEstimate} schema tokens`,
+      );
+      for (const f of result.efficiency.findings) {
+        const label = f.level === "critical" ? this.red("CRIT") : this.yellow("WARN");
+        lines.push(`    ${label} ${f.message}`);
+      }
+      lines.push("");
+    }
+
     lines.push(this.formatSummary(result));
     lines.push(this.formatScore(result.score));
     lines.push("");
