@@ -57,7 +57,7 @@ export async function createMCPClient(
       return (await client.listPrompts(params)) as ListPromptsResult;
     },
     async getPrompt(params) {
-      return (await client.getPrompt(params)) as GetPromptResult;
+      return (await client.getPrompt(params)) as unknown as GetPromptResult;
     },
     async ping() {
       await client.ping();
