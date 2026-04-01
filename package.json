@@ -19,7 +19,12 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm run build && npm test"
+  },
+  "author": {
+    "name": "Bhavya Bhushan",
+    "url": "https://github.com/bhvbhushan"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -27,12 +32,30 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhvbhushan/mcptest.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bhvbhushan/mcptest/issues"
+  },
+  "homepage": "https://github.com/bhvbhushan/mcptest#readme",
   "keywords": [
     "mcp",
+    "mcp-server",
+    "mcp-testing",
+    "model-context-protocol",
     "testing",
     "compliance",
     "security",
-    "model-context-protocol"
+    "quality-gate",
+    "schema-validation",
+    "ai-tools",
+    "llm",
+    "anthropic",
+    "claude",
+    "developer-tools",
+    "static-analysis"
   ],
   "license": "MIT",
   "dependencies": {
