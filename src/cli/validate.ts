@@ -14,6 +14,8 @@ import { JsonReporter } from "../reporters/json.js";
 import type { Reporter } from "../reporters/types.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { analyzeEfficiency } from "../efficiency/analyzer.js";
+import type { EfficiencyConfig } from "../efficiency/types.js";
 
 export function parseServerArg(
   server: string,
@@ -54,6 +56,9 @@ export interface ValidateOptions {
   skip?: string;
   only?: string;
   env?: string;
+  maxTools?: string;
+  maxSchemaTokens?: string;
+  skipEfficiency?: boolean;
 }
 
 export async function validateCommand(
@@ -93,6 +98,16 @@ export async function validateCommand(
         ? serverConfig.url!
         : [serverConfig.command, ...(serverConfig.args ?? [])].join(" ");
 
+    let efficiency;
+    if (!options.skipEfficiency) {
+      const efficiencyConfig: EfficiencyConfig = {};
+      if (options.maxTools)
+        efficiencyConfig.maxToolsCritical = parseInt(options.maxTools, 10);
+      if (options.maxSchemaTokens)
+        efficiencyConfig.maxSchemaTokensCritical = parseInt(options.maxSchemaTokens, 10);
+      efficiency = await analyzeEfficiency(client, efficiencyConfig);
+    }
+
     const result = await runTests(
       complianceTests,
       { client, timeout },
@@ -101,6 +116,7 @@ export async function validateCommand(
         only: onlyList && onlyList.length > 0 ? onlyList : undefined,
       },
       serverLabel,
+      efficiency,
     );
 
     const output = reporter.format(result);
