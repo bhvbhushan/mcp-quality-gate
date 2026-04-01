@@ -53,6 +53,7 @@ export interface ValidateOptions {
   timeout?: string;
   skip?: string;
   only?: string;
+  env?: string;
 }
 
 export async function validateCommand(
@@ -60,6 +61,16 @@ export async function validateCommand(
   options: ValidateOptions,
 ): Promise<void> {
   const serverConfig = parseServerArg(server, options.transport);
+
+  if (options.env) {
+    serverConfig.env = Object.fromEntries(
+      options.env.split(",").map((pair) => {
+        const eq = pair.indexOf("=");
+        return [pair.slice(0, eq), pair.slice(eq + 1)];
+      }),
+    );
+  }
+
   const reporter = createReporter(options.reporter);
   const timeout = parseInt(options.timeout ?? "30000", 10);
 

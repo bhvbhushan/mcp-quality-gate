@@ -34,6 +34,9 @@ export async function createMCPClient(
       : new StdioClientTransport({
           command: config.command,
           args: config.args,
+          env: config.env
+            ? { ...process.env as Record<string, string>, ...config.env }
+            : undefined,
         });
 
   await client.connect(transport);

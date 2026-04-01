@@ -16,6 +16,7 @@ program
   .option("--timeout <ms>", "test timeout in milliseconds", "30000")
   .option("--skip <tests>", "comma-separated test IDs to skip")
   .option("--only <tests>", "comma-separated test IDs to run")
+  .option("-e, --env <vars>", "environment variables as KEY=VAL,KEY2=VAL2")
   .action(validateCommand);
 
 program.parseAsync().catch((error) => {
