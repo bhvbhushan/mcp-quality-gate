@@ -5,6 +5,7 @@ import { complianceTests } from "../../src/compliance/index.js";
 import { ConsoleReporter } from "../../src/reporters/console.js";
 import { JsonReporter } from "../../src/reporters/json.js";
 import { analyzeEfficiency } from "../../src/efficiency/analyzer.js";
+import { listAllTools } from "../../src/core/client.js";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,7 +51,8 @@ describe("integration: full pipeline", () => {
       expect(parsed.results).toHaveLength(result.results.length);
 
       // Verify efficiency analysis
-      const efficiency = await analyzeEfficiency(client);
+      const allTools = await listAllTools(client);
+      const efficiency = analyzeEfficiency(allTools);
       expect(efficiency.toolCount).toBe(2); // echo + add
       expect(efficiency.schemaTokenEstimate).toBeGreaterThan(0);
       expect(efficiency.findings).toHaveLength(0); // only 2 tools, well under thresholds
