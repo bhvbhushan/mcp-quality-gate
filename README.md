@@ -125,32 +125,66 @@ Composite 0-100 score across four dimensions:
 
 **Maximum score is 100** when all four dimensions are analyzed and no issues are found. Dimensions not analyzed contribute 0 points toward their maximum — a server with `--skip-security` can score at most 80.
 
+### Real-World Results
+
+Tested against official MCP servers (April 2026):
+
+| Server | Score | Compliance | Quality | Efficiency | Security | Key Findings |
+|--------|:---:|:---:|:---:|:---:|:---:|---|
+| Memory | **98** | 40/40 | 23/25 | 15/15 | 20/20 | 50% params undocumented |
+| Sequential Thinking | **98** | 40/40 | 23/25 | 15/15 | 20/20 | Verbose 500+ char description |
+| Everything | **88** | 40/40 | 23/25 | 15/15 | 10/20 | `get-env` leaks env vars, duplicate schemas |
+| Filesystem | **81** | 40/40 | 11/25 | 15/15 | 15/20 | 72% params undocumented, deprecated tool, duplicates |
+| Playwright | **81** | 40/40 | 19/25 | 12/15 | 10/20 | Code execution tools, short descriptions, 21 tools |
+
 ### Example Output
 
 ```
 mcptest v0.1.0
-Server: my-mcp-server
+Server: npx -y @modelcontextprotocol/server-filesystem /tmp
 
   lifecycle
-    PASS Server reports name and version (12ms)
-    PASS Server reports capabilities (3ms)
-    PASS Server responds to ping (8ms)
+    PASS Server reports name and version (0ms)
+    PASS Server reports capabilities (0ms)
+    PASS Server responds to ping (1ms)
 
   tools
-    PASS Server lists tools without error (4ms)
-    PASS Tool definitions have required fields (2ms)
-    ...
+    PASS Server lists tools without error (5ms)
+    PASS Tool definitions have required fields (6ms)
+    PASS Tool names follow naming convention (8ms)
+    PASS Tool inputSchema has type object (4ms)
+    PASS Can call a listed tool (10ms)
+    PASS Calling nonexistent tool returns error (1ms)
+    PASS Tool descriptions are present (8ms)
+
+  resources
+    SKIP Server lists resources without error
+    SKIP Resource definitions have required fields
+    SKIP Resource descriptions are present
+    SKIP Can read a listed resource
+
+  prompts
+    SKIP Server lists prompts without error
+    SKIP Prompt definitions have required fields
+    SKIP Can get a listed prompt
+
+  efficiency
+    14 tools, ~3057 schema tokens
 
   quality
-    Param description coverage: 100%
-    No issues found
+    Param description coverage: 28%
+    Deprecated: read_file
+    Duplicates: read_file, read_text_file
+    CRIT 18 of 25 parameters lack descriptions (72%)
+    CRIT 1 deprecated tool(s) still listed: read_file
+    WARN Tools with identical schemas: read_file, read_text_file
 
   security
-    No issues found
+    WARN "write_file" performs destructive operations — description warns of risk
 
-Results: 17 passed (543ms)
-Score: 100/100
-  compliance 40/40 | quality 25/25 | efficiency 15/15 | security 20/20
+Results: 10 passed, 7 skipped (45ms)
+Score: 81/100
+  compliance 40/40 | quality 11/25 | efficiency 15/15 | security 15/20
 ```
 
 ## Programmatic API
