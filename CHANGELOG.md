@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-04-01
+
+### Fixed
+
+- Fixed npm publish workflow: clear token-based auth from `.npmrc` so Trusted Publisher OIDC works
+- Added `workflow_dispatch` trigger for manual publish reruns
+
 ## [0.1.1] - 2026-04-01
 
 ### Changed

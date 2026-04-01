@@ -23,6 +23,11 @@ jobs:
       - name: Install latest npm (OIDC requires >= 11.5.1)
         run: npm install -g npm@latest
 
+      - name: Clear token-based auth for Trusted Publisher OIDC
+        run: |
+          npm config delete //registry.npmjs.org/:_authToken 2>/dev/null || true
+          echo "Cleared .npmrc token entry — npm will use OIDC via Trusted Publisher"
+
       - name: Check if version is already published
         id: version-check
         run: |
