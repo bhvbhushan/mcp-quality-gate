@@ -29,6 +29,11 @@ mcptest validate "http://localhost:3000/mcp" --transport http
 # Run specific tests or skip tests
 mcptest validate "./my-server" --only lifecycle-init-01,lifecycle-init-02
 mcptest validate "./my-server" --skip lifecycle-init-03
+
+# Skip optional analysis dimensions
+mcptest validate "./my-server" --skip-efficiency
+mcptest validate "./my-server" --skip-quality
+mcptest validate "./my-server" --skip-security
 ```
 
 ## CLI Options
@@ -46,10 +51,12 @@ mcptest validate "./my-server" --skip lifecycle-init-03
 | `--max-tools` | Critical threshold for tool count | `50` |
 | `--max-schema-tokens` | Critical threshold for schema tokens | `30000` |
 | `--skip-efficiency` | Skip efficiency analysis | — |
+| `--skip-quality` | Skip quality analysis | — |
+| `--skip-security` | Skip security analysis | — |
 
-## What's Tested (Phase 1)
+## What's Tested (Phase 1, Week 2)
 
-### Compliance Tests
+### Compliance Tests (17 total)
 
 | Category | ID | Test | Severity |
 |----------|----|------|----------|
@@ -63,6 +70,36 @@ mcptest validate "./my-server" --skip lifecycle-init-03
 | Tools | `tools-call-01` | Can call a listed tool | Critical |
 | Tools | `tools-call-02` | Calling nonexistent tool returns error | High |
 | Tools | `tools-call-03` | Tool descriptions are present | Medium |
+| Resources | `resources-list-01` | Server lists resources without error | Critical |
+| Resources | `resources-list-02` | Resource definitions have required fields | Critical |
+| Resources | `resources-list-03` | Resource descriptions are present | Medium |
+| Resources | `resources-read-01` | Can read a listed resource | Critical |
+| Prompts | `prompts-list-01` | Server lists prompts without error | Critical |
+| Prompts | `prompts-list-02` | Prompt definitions have required fields | Critical |
+| Prompts | `prompts-get-01` | Can get a listed prompt | Critical |
+
+### Quality Analysis
+
+Analyzes schema and description quality to help LLMs use your tools effectively.
+
+| Check | Description |
+|-------|-------------|
+| Param description coverage | Percentage of parameters with descriptions |
+| Description quality (short) | Tools with descriptions under 20 characters |
+| Description quality (verbose) | Tools with descriptions over 500 characters |
+| Deprecated tool detection | Tools whose descriptions mention "deprecated" or "obsolete" |
+| Duplicate tool detection | Tools with identical input schemas |
+| Required/default mismatch | Required parameters that also have default values |
+
+### Security Analysis
+
+Performs static analysis on tool definitions to detect common security risks.
+
+| Check | Category | Description |
+|-------|----------|-------------|
+| Environment variable exposure | `env-exposure` | Tools whose name/description suggest leaking env vars or secrets |
+| Code execution detection | `code-execution` | Tools that appear to execute arbitrary code or scripts |
+| Dangerous default patterns | `dangerous-defaults` | Tools performing destructive operations without warnings |
 
 ### Efficiency Analysis
 
@@ -75,18 +112,60 @@ Analyzes tool proliferation and schema bloat — key causes of poor LLM performa
 
 Token estimation uses `chars/4` heuristic (~15% accuracy vs tiktoken for JSON schemas).
 
-### Quality Score
+## Scoring
 
-Composite 0-100 score (max 80 in Phase 1, security adds 20 in Phase 2):
-- **Compliance** (60%): `(passed / total_run) × 60`
-- **Efficiency** (20%): `20 - (warnings × 5) - (criticals × 10)`, min 0
+Composite 0-100 score across four dimensions:
 
-More compliance tests (resources, prompts, transport, protocol) are coming in Phase 1 Week 3.
+| Dimension | Max Points | Description |
+|-----------|-----------|-------------|
+| Compliance | 40 | Protocol conformance: `(passed / total_run) × 40` |
+| Quality | 25 | Schema quality; deduct 5 per critical finding, 2 per warning |
+| Efficiency | 15 | Tool count and token budget; deduct 8 per critical, 3 per warning |
+| Security | 20 | Dangerous patterns; deduct 10 per critical finding, 5 per warning |
+
+**Maximum score is 100** when all four dimensions are analyzed and no issues are found. Dimensions not analyzed contribute 0 points toward their maximum — a server with `--skip-security` can score at most 80.
+
+### Example Output
+
+```
+mcptest v0.1.0
+Server: my-mcp-server
+
+  lifecycle
+    PASS Server reports name and version (12ms)
+    PASS Server reports capabilities (3ms)
+    PASS Server responds to ping (8ms)
+
+  tools
+    PASS Server lists tools without error (4ms)
+    PASS Tool definitions have required fields (2ms)
+    ...
+
+  quality
+    Param description coverage: 100%
+    No issues found
+
+  security
+    No issues found
+
+Results: 17 passed (543ms)
+Score: 100/100
+  compliance 40/40 | quality 25/25 | efficiency 15/15 | security 20/20
+```
 
 ## Programmatic API
 
 ```typescript
-import { createMCPClient, runTests, complianceTests, ConsoleReporter } from "mcptest";
+import {
+  createMCPClient,
+  listAllTools,
+  runTests,
+  complianceTests,
+  analyzeEfficiency,
+  analyzeQuality,
+  analyzeSecurity,
+  ConsoleReporter,
+} from "mcptest";
 
 const client = await createMCPClient({
   command: "node",
@@ -94,9 +173,22 @@ const client = await createMCPClient({
   transport: "stdio",
 });
 
-const result = await runTests(complianceTests, { client, timeout: 10000 });
-console.log(new ConsoleReporter().format(result));
+const tools = await listAllTools(client);
+const efficiency = analyzeEfficiency(tools);
+const quality = analyzeQuality(tools);
+const security = analyzeSecurity(tools);
 
+const result = await runTests(
+  complianceTests,
+  { client, timeout: 10000 },
+  undefined,
+  "my-server",
+  efficiency,
+  quality,
+  security,
+);
+
+console.log(new ConsoleReporter().format(result));
 await client.close();
 ```
 
@@ -106,18 +198,20 @@ await client.close();
 mcptest CLI (Commander)
 ├── Test Runner Engine — discovers, filters, executes tests, scores results
 ├── MCP Client Wrapper — connects via stdio or HTTP transport
-├── Compliance Tests — spec conformance checks (lifecycle, tools, resources, etc.)
+├── Compliance Tests — spec conformance checks (lifecycle, tools, resources, prompts)
 ├── Reporters — console (colored) and JSON output
 ├── Efficiency Analyzer — tool count, schema token estimation, threshold findings
-└── Score: weighted composite (compliance 60% + efficiency 20%, max 80 Phase 1)
+├── Quality Analyzer — param descriptions, description quality, deprecated/duplicate detection
+├── Security Analyzer — env exposure, code execution, dangerous default patterns
+└── Score: 4-dimension weighted composite (compliance 40 + quality 25 + efficiency 15 + security 20 = 100)
 ```
 
 ## Roadmap
 
-- **Phase 1 Week 2**: ~~Tools compliance tests + tool efficiency module~~ (done)
-- **Phase 1 Week 3**: Resources, prompts, protocol compliance tests, capability refusal test, transport tests
+- **Phase 1 Week 2**: ~~Tools compliance tests, resources, prompts, quality + security analysis~~ (done)
+- **Phase 1 Week 3**: Transport tests, capability refusal test, protocol compliance tests
 - **Phase 1 Week 4**: Real-server validation, npm publish, GitHub Action, `mcptest init`
-- **Phase 2**: Security scanner (static + dynamic), registry scanner
+- **Phase 2**: Registry scanner, dynamic security testing
 
 ## License
 
