@@ -123,4 +123,89 @@ describe("tools compliance tests", () => {
       expect(result.status).toBe("fail");
     });
   });
+
+  describe("tools-call-01: can call a listed tool", () => {
+    const test = toolsTests.find((t) => t.id === "tools-call-01")!;
+
+    it("passes when tool call returns result", async () => {
+      const result = await test.run(makeCtx());
+      expect(result.status).toBe("pass");
+    });
+
+    it("skips when no tools available", async () => {
+      const result = await test.run(
+        makeCtx({ listTools: async () => ({ tools: [] }) }),
+      );
+      expect(result.status).toBe("skip");
+    });
+
+    it("fails when tool call throws protocol error", async () => {
+      const result = await test.run(
+        makeCtx({
+          callTool: async () => {
+            throw new Error("protocol error");
+          },
+        }),
+      );
+      expect(result.status).toBe("fail");
+    });
+  });
+
+  describe("tools-call-02: calling nonexistent tool returns error", () => {
+    const test = toolsTests.find((t) => t.id === "tools-call-02")!;
+
+    it("passes when server rejects nonexistent tool", async () => {
+      const result = await test.run(
+        makeCtx({
+          callTool: async () => {
+            throw new Error("tool not found");
+          },
+        }),
+      );
+      expect(result.status).toBe("pass");
+    });
+
+    it("passes when server returns isError for nonexistent tool", async () => {
+      const result = await test.run(
+        makeCtx({
+          callTool: async () => ({
+            content: [{ type: "text", text: "not found" }],
+            isError: true,
+          }),
+        }),
+      );
+      expect(result.status).toBe("pass");
+    });
+
+    it("fails when server silently succeeds for nonexistent tool", async () => {
+      const result = await test.run(
+        makeCtx({
+          callTool: async () => ({
+            content: [{ type: "text", text: "ok" }],
+          }),
+        }),
+      );
+      expect(result.status).toBe("fail");
+    });
+  });
+
+  describe("tools-call-03: tool descriptions are present", () => {
+    const test = toolsTests.find((t) => t.id === "tools-call-03")!;
+
+    it("passes when all tools have descriptions", async () => {
+      const result = await test.run(makeCtx());
+      expect(result.status).toBe("pass");
+    });
+
+    it("fails when a tool lacks description", async () => {
+      const result = await test.run(
+        makeCtx({
+          listTools: async () => ({
+            tools: [{ name: "bare", inputSchema: { type: "object" } }],
+          }),
+        }),
+      );
+      expect(result.status).toBe("fail");
+    });
+  });
 });
